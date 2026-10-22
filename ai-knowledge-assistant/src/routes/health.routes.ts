@@ -2,7 +2,7 @@ import { Router } from 'express';
 
 import type { AppConfig } from '../config/env.js';
 
-export function healthRouter(
+export function createHealthRoutes(
   config: AppConfig
 ): Router {
 
@@ -12,9 +12,8 @@ export function healthRouter(
 
     res.status(200).json({
       status: 'ok',
-      mode: config.AI_EXECUTION_MODE,
+      mode: config.AI_EXECUTION_MODE
     });
-
   });
 
   return router;

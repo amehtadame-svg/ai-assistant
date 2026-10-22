@@ -3,52 +3,62 @@ import type { ErrorRequestHandler } from 'express';
 import { ApiError } from '../errors/api-error.js';
 
 export const errorHandler: ErrorRequestHandler = (
-  err: unknown,
+  error: unknown,
   _req,
   res,
   next
 ) => {
+
   if (res.headersSent) {
-    return next(err);
+    return next(error);
   }
 
-  const malformedJson =
-    err instanceof SyntaxError &&
-    'status' in err &&
-    err.status === 400;
+  const invalidJson =
+    error instanceof SyntaxError &&
+    'status' in error &&
+    error.status === 400;
 
-  const oversized =
-    typeof err === 'object' &&
-    err !== null &&
-    'status' in err &&
-    err.status === 413;
+  const oversizedBody =
+    typeof error === 'object' &&
+    error !== null &&
+    'status' in error &&
+    error.status === 413;
 
-  const normalized =
-    err instanceof ApiError
-      ? err
-      : malformedJson
-        ? new ApiError(
-            400,
-            'INVALID_JSON',
-            'El JSON enviado no es válido.'
-          )
-        : oversized
-          ? new ApiError(
-              413,
-              'PAYLOAD_TOO_LARGE',
-              'El cuerpo excede el límite permitido.'
-            )
-          : new ApiError(
-              500,
-              'INTERNAL_ERROR',
-              'Error interno.'
-            );
+  let normalized: ApiError;
 
-  console.error(JSON.stringify({
-    event: 'request_failed',
+  if (error instanceof ApiError) {
+
+    normalized = error;
+
+  } else if (invalidJson) {
+
+    normalized = new ApiError(
+      400,
+      'INVALID_JSON',
+      'El JSON enviado no es válido.'
+    );
+
+  } else if (oversizedBody) {
+
+    normalized = new ApiError(
+      413,
+      'PAYLOAD_TOO_LARGE',
+      'El cuerpo de la petición excede el tamaño permitido.'
+    );
+
+  } else {
+
+    normalized = new ApiError(
+      500,
+      'INTERNAL_ERROR',
+      'Error interno del servidor.'
+    );
+  }
+
+  console.error({
     code: normalized.code,
     requestId: res.locals.requestId
-  }));
+  });
 
   res.status(normalized.statusCode).json({
     error: {
